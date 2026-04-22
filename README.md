@@ -1,3 +1,17 @@
-# Welcome to your Lovable project
+# SUPERMARKET CASHIER
 
-TODO: Document your project here
+نظام نقاط البيع المتكامل — AMW Code Company
+
+## التطوير
+
+```sh
+npm install
+npm run dev
+```
+
+## البناء
+
+```sh
+npm run build
+npm run dist
+```
