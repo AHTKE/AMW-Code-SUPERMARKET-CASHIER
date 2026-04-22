@@ -1,0 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Tajawal:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 195 16% 20%;
+    --foreground: 0 0% 100%;
+
+    --card: 195 18% 16%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 195 18% 16%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 0 0% 100%;
+    --primary-foreground: 195 16% 20%;
+
+    --secondary: 195 14% 28%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 195 12% 25%;
+    --muted-foreground: 195 8% 60%;
+
+    --accent: 195 14% 28%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 4 70% 46%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 145 63% 49%;
+    --success-foreground: 0 0% 100%;
+
+    --supermarket: 27 100% 53%;
+    --supermarket-foreground: 0 0% 100%;
+
+    --cafe: 80 56% 35%;
+    --cafe-foreground: 0 0% 100%;
+
+    --border: 195 12% 30%;
+    --input: 195 12% 30%;
+    --ring: 0 0% 100%;
+
+    --radius: 0.375rem;
+
+    --sidebar-background: 195 18% 14%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 195 16% 20%;
+    --sidebar-accent: 195 14% 22%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 195 12% 25%;
+    --sidebar-ring: 0 0% 100%;
+  }
+
+  .light {
+    --background: 0 0% 97%;
+    --foreground: 220 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+
+    --primary: 220 15% 15%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 10% 92%;
+    --secondary-foreground: 220 15% 15%;
+
+    --muted: 220 10% 90%;
+    --muted-foreground: 220 8% 45%;
+
+    --accent: 220 10% 92%;
+    --accent-foreground: 220 15% 15%;
+
+    --destructive: 4 70% 46%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 145 63% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --supermarket: 27 100% 50%;
+    --supermarket-foreground: 0 0% 100%;
+
+    --cafe: 80 56% 32%;
+    --cafe-foreground: 0 0% 100%;
+
+    --border: 220 10% 85%;
+    --input: 220 10% 85%;
+    --ring: 220 15% 15%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 220 15% 20%;
+    --sidebar-primary: 220 15% 15%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 10% 94%;
+    --sidebar-accent-foreground: 220 15% 20%;
+    --sidebar-border: 220 10% 88%;
+    --sidebar-ring: 220 15% 15%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Tajawal', sans-serif;
+    direction: rtl;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Cairo', sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-cairo {
+    font-family: 'Cairo', sans-serif;
+  }
+  .font-tajawal {
+    font-family: 'Tajawal', sans-serif;
+  }
+}
+
+/* Mechanical flip animation */
+@keyframes flip-in {
+  0% {
+    transform: rotateX(90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+.flip-enter {
+  animation: flip-in 0.2s ease-out;
+}
