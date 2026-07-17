@@ -1,19 +1,11 @@
 import { useState } from 'react';
 import { getSettings, saveSettings, POSSettings as POSSettingsType } from '@/lib/settings';
+import { CustomShortcut, getCustomShortcuts, saveCustomShortcuts } from '@/lib/shortcuts';
 import { Settings, Printer, Camera, ScanBarcode, Save, CheckCircle, Plus, Trash2, RefreshCw } from 'lucide-react';
 
 interface POSSettingsProps {
   onClose: () => void;
   cashierId?: string;
-}
-
-const CUSTOM_SHORTCUTS_KEY = 'pos_custom_shortcuts';
-
-interface CustomShortcut {
-  id: string;
-  key: string;
-  action: string;
-  label: string;
 }
 
 const ALL_ACTIONS = [
@@ -41,27 +33,6 @@ const ALL_ACTIONS = [
   { value: 'recall_invoice', label: 'استرجاع فاتورة معلقة' },
   { value: 'refresh_page', label: 'تحديث الصفحة' },
 ];
-
-// Per-cashier shortcut storage
-function getShortcutsKey(cashierId?: string): string {
-  return cashierId ? `pos_shortcuts_${cashierId}` : CUSTOM_SHORTCUTS_KEY;
-}
-
-export function getCustomShortcuts(cashierId?: string): CustomShortcut[] {
-  try {
-    if (cashierId) {
-      const raw = localStorage.getItem(`pos_shortcuts_${cashierId}`);
-      if (raw) return JSON.parse(raw);
-    }
-    const raw = localStorage.getItem(CUSTOM_SHORTCUTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function saveCustomShortcuts(shortcuts: CustomShortcut[], cashierId?: string) {
-  const key = getShortcutsKey(cashierId);
-  localStorage.setItem(key, JSON.stringify(shortcuts));
-}
 
 const POSSettings = ({ onClose, cashierId }: POSSettingsProps) => {
   const [settings, setSettings] = useState<POSSettingsType>(getSettings());

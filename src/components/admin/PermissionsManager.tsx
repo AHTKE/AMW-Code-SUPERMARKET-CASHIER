@@ -52,6 +52,7 @@ const PermissionsManager = () => {
         { key: 'showReturns' as const, label: 'إظهار سجل المرتجعات', desc: 'الكاشير يشوف المرتجعات السابقة' },
         { key: 'showSalesCount' as const, label: 'إظهار عدد الفواتير', desc: 'يظهر للكاشير عدد فواتير الشيفت' },
         { key: 'showSalesTotal' as const, label: 'إظهار إجمالي المبيعات', desc: 'يظهر للكاشير مجموع مبيعات الشيفت' },
+        { key: 'canSyncData' as const, label: 'السماح بمزامنة البيانات (QR / ملف)', desc: 'الكاشير يقدر يفتح نافذة الاستيراد/التصدير عبر QR أو ملف JSON' },
       ].map(item => (
         <label key={item.key} className="flex items-start gap-3 cursor-pointer p-3 bg-secondary rounded-lg hover:bg-muted transition-colors">
           <input

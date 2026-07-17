@@ -3,7 +3,10 @@ export type POSMode = 'supermarket' | 'cafe';
 export interface Product {
   id: string;
   name: string;
+  /** Primary barcode (kept for backwards compatibility). */
   barcode?: string;
+  /** Additional barcodes for the SAME product (different variants/flavors that share the same price). */
+  barcodes?: string[];
   price: number;
   costPrice?: number;
   stock: number;
@@ -96,4 +99,4 @@ export interface CashierSession {
   salesTotal: number;
 }
 
-export type AppView = 'pos' | 'admin' | 'admin-login' | 'login' | 'cashier-login';
+export type AppView = 'pos' | 'admin' | 'admin-login' | 'login' | 'cashier-login' | 'branch-manager' | 'branch-manager-login';

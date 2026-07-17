@@ -7,6 +7,7 @@ export interface CashierPermissions {
   showSalesCount: boolean;
   showSalesTotal: boolean;
   showReturns: boolean;
+  canSyncData: boolean;
 }
 
 const PERMISSIONS_KEY = 'pos_cashier_permissions';
@@ -20,6 +21,7 @@ const DEFAULT_PERMISSIONS: CashierPermissions = {
   showSalesCount: false,
   showSalesTotal: false,
   showReturns: false,
+  canSyncData: false,
 };
 
 export function getGlobalPermissions(): CashierPermissions {

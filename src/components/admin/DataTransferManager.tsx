@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { exportData, importData, factoryReset, DataCategory, CATEGORY_LABELS } from '@/lib/dataTransfer';
 import { verifyAdmin } from '@/lib/store';
-import { Download, Upload, Trash2, AlertTriangle, CheckCircle, FileDown, FileUp } from 'lucide-react';
+import { Download, Upload, Trash2, AlertTriangle, CheckCircle, FileDown, FileUp, QrCode, Camera } from 'lucide-react';
+import QRSyncTransfer from '@/components/shared/QRSyncTransfer';
 
 const ALL_CATEGORIES: DataCategory[] = ['products', 'sales', 'expenses', 'income', 'cashiers', 'sessions', 'returns', 'settings', 'held'];
 
@@ -11,6 +12,7 @@ const DataTransferManager = () => {
   const [exportAll, setExportAll] = useState(true);
   const [mergeMode, setMergeMode] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [qrMode, setQrMode] = useState<'send' | 'receive' | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Factory reset state
@@ -118,10 +120,24 @@ const DataTransferManager = () => {
             </div>
           )}
 
-          <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-supermarket text-supermarket-foreground rounded font-cairo font-bold text-sm hover:opacity-90">
-            <FileDown className="w-4 h-4" />
-            تحميل ملف النسخة الاحتياطية
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={handleExport} className="flex items-center gap-2 px-6 py-3 bg-supermarket text-supermarket-foreground rounded font-cairo font-bold text-sm hover:opacity-90">
+              <FileDown className="w-4 h-4" />
+              تحميل ملف النسخة الاحتياطية
+            </button>
+            <button
+              onClick={() => setQrMode('send')}
+              className="flex items-center gap-2 px-6 py-3 bg-secondary border border-border rounded font-cairo font-bold text-sm hover:bg-muted"
+              title="مزامنة سريعة بدون ملفات ولا واتساب"
+            >
+              <QrCode className="w-4 h-4" />
+              إرسال بالـ QR للكاشير
+            </button>
+          </div>
+          <p className="font-cairo text-[11px] text-muted-foreground leading-relaxed">
+            💡 <b>الـ QR أسهل للكاشير:</b> اضغط «إرسال بالـ QR»، ويطلب من الكاشير من شاشة المزامنة عنده يختار «استقبال بالكاميرا»
+            ويصوّر شاشتك. مفيش رفع ولا تنزيل ولا واتساب.
+          </p>
         </div>
       )}
 
@@ -138,17 +154,28 @@ const DataTransferManager = () => {
             <label className="flex items-center gap-3 cursor-pointer p-3 bg-secondary rounded-lg">
               <input type="radio" checked={mergeMode} onChange={() => setMergeMode(true)} className="accent-supermarket" />
               <div>
-                <span className="font-cairo font-bold text-sm block">دمج</span>
-                <span className="font-cairo text-xs text-muted-foreground">يدمج البيانات القديمة مع المرفوعة بدون تكرار</span>
+                <span className="font-cairo font-bold text-sm block">دمج ذكي (تحديث)</span>
+                <span className="font-cairo text-xs text-muted-foreground">
+                  يحدّث المنتجات والإعدادات الموجودة في الملف، ويضيف الجديد فقط، ويحافظ على المبيعات والبيانات المحلية زي ما هي.
+                </span>
               </div>
             </label>
           </div>
 
           <input ref={fileRef} type="file" accept=".json" onChange={handleFileSelect} className="hidden" />
-          <button onClick={() => fileRef.current?.click()} className="flex items-center gap-2 px-6 py-3 bg-supermarket text-supermarket-foreground rounded font-cairo font-bold text-sm hover:opacity-90">
-            <FileUp className="w-4 h-4" />
-            اختر ملف النسخة الاحتياطية
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => fileRef.current?.click()} className="flex items-center gap-2 px-6 py-3 bg-supermarket text-supermarket-foreground rounded font-cairo font-bold text-sm hover:opacity-90">
+              <FileUp className="w-4 h-4" />
+              اختر ملف النسخة الاحتياطية
+            </button>
+            <button
+              onClick={() => setQrMode('receive')}
+              className="flex items-center gap-2 px-6 py-3 bg-secondary border border-border rounded font-cairo font-bold text-sm hover:bg-muted"
+            >
+              <Camera className="w-4 h-4" />
+              استقبال بالكاميرا (QR)
+            </button>
+          </div>
         </div>
       )}
 
@@ -200,6 +227,28 @@ const DataTransferManager = () => {
             </div>
           )}
         </div>
+      )}
+
+      {qrMode === 'send' && (
+        <QRSyncTransfer
+          mode="send"
+          payload={exportAll ? exportData() : exportData(selectedCats.length > 0 ? selectedCats : undefined)}
+          onClose={() => setQrMode(null)}
+          title="إرسال البيانات بالـ QR"
+        />
+      )}
+      {qrMode === 'receive' && (
+        <QRSyncTransfer
+          mode="receive"
+          onReceive={(json) => {
+            const result = importData(json, mergeMode);
+            setMessage({ text: result.message, type: result.success ? 'success' : 'error' });
+            setQrMode(null);
+            if (result.success) setTimeout(() => window.location.reload(), 1500);
+          }}
+          onClose={() => setQrMode(null)}
+          title="استقبال بالكاميرا (QR)"
+        />
       )}
     </div>
   );

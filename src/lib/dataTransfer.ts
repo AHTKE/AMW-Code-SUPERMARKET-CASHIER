@@ -66,23 +66,56 @@ export function importData(jsonStr: string, merge: boolean = false): { success: 
     const keys = Object.keys(data).filter(k => !k.startsWith('_'));
 
     for (const key of keys) {
-      if (merge && Array.isArray(data[key])) {
-        // Merge arrays by id, avoiding duplicates
-        const existingRaw = localStorage.getItem(key);
-        if (existingRaw) {
-          try {
-            const existing = JSON.parse(existingRaw);
-            if (Array.isArray(existing)) {
-              const existingIds = new Set(existing.map((item: any) => item.id).filter(Boolean));
-              const newItems = data[key].filter((item: any) => !item.id || !existingIds.has(item.id));
-              const merged = [...existing, ...newItems];
-              localStorage.setItem(key, JSON.stringify(merged));
-              continue;
-            }
-          } catch {}
+      const incoming = data[key];
+
+      if (merge) {
+        // SMART MERGE:
+        // - Arrays: upsert by id (new/edited items replace existing with same id, others kept).
+        //   Empty incoming arrays are IGNORED so an admin's empty sales/expenses list
+        //   doesn't wipe the cashier's real data.
+        // - Objects / scalars: only overwrite if incoming has content (non-empty).
+        if (Array.isArray(incoming)) {
+          if (incoming.length === 0) {
+            // preserve existing data
+            continue;
+          }
+          const existingRaw = localStorage.getItem(key);
+          let existing: any[] = [];
+          if (existingRaw) {
+            try {
+              const parsed = JSON.parse(existingRaw);
+              if (Array.isArray(parsed)) existing = parsed;
+            } catch {}
+          }
+          const incomingIds = new Set(
+            incoming.map((it: any) => it?.id).filter((v: any) => v !== undefined && v !== null)
+          );
+          // Keep existing items that are NOT being updated by incoming
+          const kept = existing.filter((it: any) => !it?.id || !incomingIds.has(it.id));
+          // Incoming items overwrite / add
+          const merged = [...kept, ...incoming];
+          localStorage.setItem(key, JSON.stringify(merged));
+          continue;
         }
+
+        if (incoming && typeof incoming === 'object') {
+          if (Object.keys(incoming).length === 0) continue;
+          const existingRaw = localStorage.getItem(key);
+          let existing: any = {};
+          if (existingRaw) {
+            try { existing = JSON.parse(existingRaw) || {}; } catch {}
+          }
+          localStorage.setItem(key, JSON.stringify({ ...existing, ...incoming }));
+          continue;
+        }
+
+        // primitive
+        if (incoming === null || incoming === undefined || incoming === '') continue;
+        localStorage.setItem(key, JSON.stringify(incoming));
+      } else {
+        // REPLACE: raw overwrite (old behavior)
+        localStorage.setItem(key, JSON.stringify(incoming));
       }
-      localStorage.setItem(key, JSON.stringify(data[key]));
     }
 
     return { success: true, message: `تم ${merge ? 'دمج' : 'استيراد'} ${keys.length} فئة بنجاح` };

@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Lock, AlertTriangle, Send, Copy, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, AlertTriangle, Send, Copy, CheckCircle, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react';
 import {
   isDeviceActivated, activateDevice, verifyActivationCode,
-  getCurrentPassword, getCurrentSmsCode, getDeviceId, generateActivationCode
+  getCurrentPassword, getCurrentSmsCode, getDeviceId, generateActivationCode,
+  verifyRotatingPassword,
 } from '@/lib/activation';
+import { normalizeNumericSecret, normalizeSecret } from '@/lib/normalizeSecret';
+import { getAppFullscreenState, toggleAppFullscreen } from '@/lib/fullscreen';
 import CompanyCredits from './CompanyCredits';
 
 interface ActivationGateProps {
@@ -21,6 +24,7 @@ const ActivationGate = ({ children }: ActivationGateProps) => {
   const [error, setError] = useState('');
   const [step, setStep] = useState<'password' | 'code'>('password');
   const [smsSent, setSmsSent] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Hidden admin flow
   const [secretSubmitCount, setSecretSubmitCount] = useState(0);
@@ -30,13 +34,24 @@ const ActivationGate = ({ children }: ActivationGateProps) => {
   const [secondGateError, setSecondGateError] = useState('');
   const [showHiddenAdmin, setShowHiddenAdmin] = useState(false);
 
+  useEffect(() => {
+    const updateFullscreen = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    void getAppFullscreenState().then(setIsFullscreen).catch(updateFullscreen);
+    document.addEventListener('fullscreenchange', updateFullscreen);
+    return () => document.removeEventListener('fullscreenchange', updateFullscreen);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    setIsFullscreen(await toggleAppFullscreen());
+  };
+
   if (activated) return <>{children}</>;
 
-  const deviceId = getDeviceId();
+  const [deviceId] = useState(() => getDeviceId());
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const entered = password.trim();
+    const entered = normalizeSecret(password);
 
     // Hidden flow: enter special trigger and click متابعة 4 times
     if (entered === HIDDEN_TRIGGER) {
@@ -55,8 +70,13 @@ const ActivationGate = ({ children }: ActivationGateProps) => {
 
     setSecretSubmitCount(0);
 
-    const current = getCurrentPassword();
-    if (entered === current) {
+    // Accept either the rotating password OR the device's own activation code
+    // (numeric, stable). This lets the user type/paste the code they already
+    // have from the admin without having to open the hidden secret panel.
+    if (
+      verifyRotatingPassword(entered) ||
+      verifyActivationCode(password, deviceId)
+    ) {
       setStep('code');
       setError('');
     } else {
@@ -66,7 +86,7 @@ const ActivationGate = ({ children }: ActivationGateProps) => {
 
   const handleSecondGateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (secondPassword.trim() === HIDDEN_PANEL_PASSWORD) {
+    if (normalizeSecret(secondPassword) === HIDDEN_PANEL_PASSWORD) {
       setShowHiddenAdmin(true);
       setShowSecondGate(false);
       setSecondPassword('');
@@ -83,7 +103,7 @@ const ActivationGate = ({ children }: ActivationGateProps) => {
 
   const handleActivate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyActivationCode(activationCode)) {
+    if (verifyActivationCode(activationCode, deviceId)) {
       activateDevice();
       setActivated(true);
     } else {
@@ -93,6 +113,15 @@ const ActivationGate = ({ children }: ActivationGateProps) => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 overflow-y-auto">
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        className="fixed left-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-secondary"
+        title={isFullscreen ? 'تصغير الشاشة' : 'ملء الشاشة'}
+        aria-label={isFullscreen ? 'تصغير الشاشة' : 'ملء الشاشة'}
+      >
+        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+      </button>
       {step === 'password' ? (
         <form onSubmit={handlePasswordSubmit} className="w-full max-w-sm bg-card rounded-xl border border-border p-8 space-y-6">
           <div className="text-center space-y-3">
@@ -297,8 +326,9 @@ export const HiddenActivationAdmin = ({ onClose }: { onClose: () => void }) => {
   }, []);
 
   const handleGenerate = () => {
-    if (deviceCodeInput.trim().length >= 6) {
-      const code = generateActivationCode(deviceCodeInput.trim());
+    const cleaned = normalizeNumericSecret(deviceCodeInput);
+    if (cleaned.length >= 6) {
+      const code = generateActivationCode(cleaned);
       setGeneratedCode(code);
     }
   };
@@ -350,7 +380,7 @@ export const HiddenActivationAdmin = ({ onClose }: { onClose: () => void }) => {
           />
           <button
             onClick={handleGenerate}
-            disabled={deviceCodeInput.trim().length < 6}
+            disabled={normalizeNumericSecret(deviceCodeInput).length < 6}
             className="w-full py-2 rounded font-cairo font-bold text-sm bg-supermarket text-supermarket-foreground hover:opacity-90 disabled:opacity-30"
           >
             إنشاء كود التفعيل

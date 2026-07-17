@@ -38,13 +38,17 @@ const SupermarketMode = ({ onAddToCart }: SupermarketModeProps) => {
     const allProducts = getProducts();
 
     for (const p of allProducts) {
-      if (p.barcode && normalizeBarcode(p.barcode) === normalized) return p;
+      const codes = [p.barcode, ...(p.barcodes || [])].filter(Boolean) as string[];
+      for (const c of codes) {
+        if (normalizeBarcode(c) === normalized) return p;
+      }
     }
     if (normalized.length >= 8) {
       for (const p of allProducts) {
-        if (p.barcode) {
-          const pNorm = normalizeBarcode(p.barcode);
-          if (pNorm.includes(normalized) || normalized.includes(pNorm)) return p;
+        const codes = [p.barcode, ...(p.barcodes || [])].filter(Boolean) as string[];
+        for (const c of codes) {
+          const pNorm = normalizeBarcode(c);
+          if (pNorm && (pNorm.includes(normalized) || normalized.includes(pNorm))) return p;
         }
       }
     }

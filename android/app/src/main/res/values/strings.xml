@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Supermarket Cashier</string>
+    <string name="title_activity_main">Supermarket Cashier</string>
+    <string name="company_name">AMW Code</string>
+    <string name="package_name">com.supermarket.cashier.pos</string>
+    <string name="custom_url_scheme">com.supermarket.cashier.pos</string>
+</resources>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, BarChart3, Package, DollarSign, FileText, Settings, Users, Lock, Tag, ShoppingCart, RotateCcw, Shield, Database, Gift, ClipboardList } from 'lucide-react';
+import { ArrowRight, BarChart3, Package, DollarSign, FileText, Settings, Users, Lock, Tag, ShoppingCart, RotateCcw, Shield, Database, Gift, ClipboardList, Radio } from 'lucide-react';
 import SalesReport from './SalesReport';
 import ProductManager from './ProductManager';
 import FinanceTracker from './FinanceTracker';
@@ -13,15 +13,31 @@ import PermissionsManager from './PermissionsManager';
 import DataTransferManager from './DataTransferManager';
 import CouponManager from './CouponManager';
 import AdminActivityLog from './AdminActivityLog';
+import BranchesView from './BranchesView';
 
 interface AdminDashboardProps {
   onBack: () => void;
+  title?: string;
+  backLabel?: string;
+  embedded?: boolean;
+  hideBack?: boolean;
+  tabStorageKey?: string;
 }
 
-type AdminTab = 'overview' | 'sales' | 'returns' | 'products' | 'categories' | 'purchases' | 'finance' | 'inventory' | 'cashiers' | 'permissions' | 'coupons' | 'data' | 'settings' | 'activity-log';
+type AdminTab = 'overview' | 'sales' | 'returns' | 'products' | 'categories' | 'purchases' | 'finance' | 'inventory' | 'cashiers' | 'permissions' | 'coupons' | 'data' | 'branches' | 'settings' | 'activity-log';
+const ADMIN_TABS: AdminTab[] = ['overview', 'sales', 'returns', 'products', 'categories', 'purchases', 'finance', 'inventory', 'cashiers', 'permissions', 'coupons', 'data', 'branches', 'settings', 'activity-log'];
 
-const AdminDashboard = ({ onBack }: AdminDashboardProps) => {
-  const [tab, setTab] = useState<AdminTab>('overview');
+const AdminDashboard = ({ onBack, title = '🔐 لوحة تحكم المدير', backLabel = 'العودة للكاشير', embedded = false, hideBack = false, tabStorageKey }: AdminDashboardProps) => {
+  const [tab, setTabState] = useState<AdminTab>(() => {
+    if (!tabStorageKey) return 'overview';
+    const saved = sessionStorage.getItem(tabStorageKey) as AdminTab | null;
+    return saved && ADMIN_TABS.includes(saved) ? saved : 'overview';
+  });
+
+  const setTab = (next: AdminTab) => {
+    setTabState(next);
+    if (tabStorageKey) sessionStorage.setItem(tabStorageKey, next);
+  };
 
   const tabs: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'نظرة عامة', icon: <BarChart3 className="w-4 h-4" /> },
@@ -36,19 +52,22 @@ const AdminDashboard = ({ onBack }: AdminDashboardProps) => {
     { id: 'cashiers', label: 'الموظفين', icon: <Users className="w-4 h-4" /> },
     { id: 'permissions', label: 'الصلاحيات', icon: <Shield className="w-4 h-4" /> },
     { id: 'data', label: 'نقل البيانات', icon: <Database className="w-4 h-4" /> },
+    { id: 'branches', label: 'السيرفرات', icon: <Radio className="w-4 h-4" /> },
     { id: 'activity-log', label: 'سجل النشاط', icon: <ClipboardList className="w-4 h-4" /> },
     { id: 'settings', label: 'الإعدادات', icon: <Lock className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className={`${embedded ? 'h-full' : 'h-screen'} flex flex-col bg-background`}>
       <div className="h-14 flex items-center justify-between px-4 bg-card border-b border-border">
-        <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-cairo font-bold text-sm">
-          <ArrowRight className="w-4 h-4" />
-          العودة للكاشير
-        </button>
+        {hideBack ? <span className="w-4" /> : (
+          <button onClick={onBack} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors font-cairo font-bold text-sm">
+            <ArrowRight className="w-4 h-4" />
+            {backLabel}
+          </button>
+        )}
         <span className="font-cairo text-[10px] text-muted-foreground">تحت رعاية أحمد محمد وهبة</span>
-        <h1 className="font-cairo font-black text-lg">🔐 لوحة تحكم المدير</h1>
+        <h1 className="font-cairo font-black text-lg">{title}</h1>
       </div>
 
       <div className="flex gap-1 p-2 bg-card border-b border-border overflow-x-auto">
@@ -79,6 +98,7 @@ const AdminDashboard = ({ onBack }: AdminDashboardProps) => {
         {tab === 'cashiers' && <CashierManager />}
         {tab === 'permissions' && <PermissionsManager />}
         {tab === 'data' && <DataTransferManager />}
+        {tab === 'branches' && <BranchesView />}
         {tab === 'activity-log' && <AdminActivityLog />}
         {tab === 'settings' && <AdminSettings />}
       </div>

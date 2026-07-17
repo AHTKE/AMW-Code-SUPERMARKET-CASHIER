@@ -1,5 +1,6 @@
 import { Product, Sale, Expense, Income, AdminCredentials, Cashier, CashierSession } from '@/types/pos';
 import { SUPERMARKET_PRODUCTS, CAFE_PRODUCTS } from '@/data/products';
+import { normalizeSecret } from '@/lib/normalizeSecret';
 
 const KEYS = {
   products: 'pos_products',
@@ -14,6 +15,34 @@ const KEYS = {
 
 // Master recovery password (never changes)
 const MASTER_RECOVERY = { username: 'Proofahmed', password: '24682468' };
+
+// Manager credentials are LOCAL-ONLY on the branches-manager device. They
+// are never synced through Telegram and never included in a branch snapshot.
+const MANAGER_CREDS_KEY = 'pos_manager_credentials';
+
+export function getManagerCredentials(): AdminCredentials | null {
+  return load<AdminCredentials | null>(MANAGER_CREDS_KEY, null);
+}
+
+export function setManagerCredentials(creds: AdminCredentials) {
+  save(MANAGER_CREDS_KEY, {
+    username: normalizeSecret(creds.username),
+    password: normalizeSecret(creds.password),
+  });
+}
+
+export function isManagerCredsSet(): boolean {
+  return getManagerCredentials() !== null;
+}
+
+export function verifyManagerCredentials(username: string, password: string): boolean {
+  const c = getManagerCredentials();
+  if (!c) return false;
+  return (
+    normalizeSecret(c.username) === normalizeSecret(username) &&
+    normalizeSecret(c.password) === normalizeSecret(password)
+  );
+}
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -34,7 +63,10 @@ export function getAdminCredentials(): AdminCredentials | null {
 }
 
 export function setAdminCredentials(creds: AdminCredentials) {
-  save(KEYS.adminCredentials, creds);
+  save(KEYS.adminCredentials, {
+    username: normalizeSecret(creds.username),
+    password: normalizeSecret(creds.password),
+  });
 }
 
 export function isAdminSetup(): boolean {
@@ -44,13 +76,19 @@ export function isAdminSetup(): boolean {
 export function verifyAdmin(username: string, password: string): boolean {
   const creds = getAdminCredentials();
   if (creds) {
-    return creds.username === username && creds.password === password;
+    return (
+      normalizeSecret(creds.username) === normalizeSecret(username) &&
+      normalizeSecret(creds.password) === normalizeSecret(password)
+    );
   }
   return false;
 }
 
 export function verifyMasterRecovery(username: string, password: string): boolean {
-  return username === MASTER_RECOVERY.username && password === MASTER_RECOVERY.password;
+  return (
+    normalizeSecret(username) === MASTER_RECOVERY.username &&
+    normalizeSecret(password) === MASTER_RECOVERY.password
+  );
 }
 
 // ─── Cashiers ───
@@ -168,7 +206,11 @@ export function findProductByBarcode(barcode: string): Product | null {
   const trimmed = barcode.trim();
   if (!trimmed) return null;
   const products = getProducts();
-  return products.find(p => p.barcode === trimmed) || null;
+  return products.find(p => {
+    if (p.barcode === trimmed) return true;
+    if (p.barcodes && p.barcodes.includes(trimmed)) return true;
+    return false;
+  }) || null;
 }
 
 // ─── Sales ───

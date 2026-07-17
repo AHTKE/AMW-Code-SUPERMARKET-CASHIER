@@ -1,150 +1,212 @@
 {
-  "name": "supermarket-cashier",
-  "private": true,
+  "name": "supermarket-cashier-desktop",
+  "productName": "Supermarket Cashier",
   "version": "1.0.0",
+  "description": "Supermarket Cashier POS - Desktop & Mobile",
+  "author": {
+    "name": "AMW Code"
+  },
+  "private": true,
+  "sideEffects": false,
   "type": "module",
   "main": "electron/main.cjs",
-  "author": "Ahmed Mohamed Wahba",
-  "description": "SUPERMARKET CASHIER - نظام نقاط البيع المتكامل",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
-    "lint": "eslint .",
+    "electron:install:desktop": "npm install electron@^22.3.27 electron-builder @capacitor/assets --save-dev",
+    "cap:install": "npm install @capacitor/core @capacitor/cli @capacitor/android",
+    "desktop:build": "npm run electron:build-win",
+    "dev": "vite dev",
+    "build:check": "node scripts/check-build-assets.mjs",
+    "packaging:icons": "node scripts/generate-packaging-icons.mjs",
+    "build": "vite build && node scripts/copy-output-to-dist.mjs && node scripts/build-spa-entry.mjs && node scripts/downlevel-css.mjs && node scripts/generate-static-shell.mjs",
+    "build:dev": "vite build --mode development && node scripts/copy-output-to-dist.mjs && node scripts/build-spa-entry.mjs && node scripts/downlevel-css.mjs && node scripts/generate-static-shell.mjs",
+    "build:package": "node scripts/build-packaged.mjs",
+    "build:shell": "node scripts/copy-output-to-dist.mjs && node scripts/build-spa-entry.mjs && node scripts/downlevel-css.mjs && node scripts/generate-static-shell.mjs",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "electron:dev": "vite build && electron .",
-    "dist": "vite build && electron-builder --win --ia32 --x64",
-    "dist:portable": "vite build && electron-builder --win portable --ia32 --x64",
-    "dist:setup": "vite build && electron-builder --win nsis --ia32 --x64",
-    "dist:all": "vite build && electron-builder --win nsis portable --ia32 --x64"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "prepare:desktop": "npm install",
+    "mobile:icons": "capacitor-assets generate --assetPath assets",
+    "prepare:android": "npm install && node scripts/ensure-cap-platform.mjs android && npm run mobile:icons && npm run build:package && npx cap sync android && node scripts/patch-capacitor-gradle.mjs",
+    "prepare:ios": "npm install && npm install @capacitor/ios && npm run build:package && node scripts/ensure-cap-platform.mjs ios && npm run mobile:icons && npx cap sync ios",
+    "cap:sync": "npm run mobile:icons && npx cap sync && node scripts/patch-capacitor-gradle.mjs",
+    "cap:sync:android": "npm run mobile:icons && npx cap sync android && node scripts/patch-capacitor-gradle.mjs",
+    "cap:sync:ios": "npm run mobile:icons && npx cap sync ios",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "android:build": "npm run mobile:icons && npm run build:package && npx cap sync android && node scripts/patch-capacitor-gradle.mjs && cd android && ./gradlew assembleDebug",
+    "android:build-release": "npm run mobile:icons && npm run build:package && npx cap sync android && node scripts/patch-capacitor-gradle.mjs && cd android && ./gradlew assembleRelease",
+    "android:build-aab": "npm run mobile:icons && npm run build:package && npx cap sync android && node scripts/patch-capacitor-gradle.mjs && cd android && ./gradlew bundleRelease",
+    "android:aab": "npm run android:build-aab",
+    "electron:build-win": "npm run packaging:icons && npm run build:package && npm run build:check && electron-builder --win --x64 --ia32 --publish never",
+    "electron:build-win64": "npm run packaging:icons && npm run build:package && npm run build:check && electron-builder --win --x64 --publish never",
+    "electron:build-win32": "npm run packaging:icons && npm run build:package && npm run build:check && electron-builder --win --ia32 --publish never",
+    "electron:build-mac": "npm run packaging:icons && npm run build:package && npm run build:check && electron-builder --mac --publish never",
+    "electron:build-linux": "npm run packaging:icons && npm run build:package && npm run build:check && electron-builder --linux --publish never",
+    "electron:build-all": "npm run packaging:icons && npm run build:package && npm run build:check && electron-builder -mwl --publish never"
   },
   "build": {
-    "appId": "com.supermarket.cashier",
-    "productName": "SUPERMARKET CASHIER",
-    "copyright": "Copyright © 2025 Ahmed Mohamed Wahba",
+    "appId": "com.supermarket.cashier.pos",
+    "productName": "Supermarket Cashier",
+    "copyright": "Copyright © 2026 AMW Code",
     "directories": {
       "output": "release",
       "buildResources": "build"
     },
     "files": [
+      "build/**/*",
+      "electron/**/*",
       "dist/**/*",
-      "electron/**/*"
+      "package.json"
     ],
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
     "win": {
+      "publisherName": "AMW Code",
+      "legalTrademarks": "AMW Code",
+      "requestedExecutionLevel": "asInvoker",
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
+          "arch": ["x64", "ia32"]
         },
         {
           "target": "portable",
-          "arch": [
-            "x64",
-            "ia32"
-          ]
+          "arch": ["x64", "ia32"]
         }
       ],
-      "icon": "build/icon.png",
-      "requestedExecutionLevel": "asInvoker",
-      "artifactName": "${productName}-${version}-${arch}-Setup.${ext}"
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "SUPERMARKET CASHIER",
-      "artifactName": "${productName}-${version}-${arch}-Setup.${ext}"
+      "shortcutName": "Supermarket Cashier",
+      "uninstallDisplayName": "Supermarket Cashier"
     },
-    "portable": {
-      "artifactName": "${productName}-${version}-${arch}-Portable.${ext}"
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.business"
     },
-    "electronVersion": "22.3.27"
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Office"
+    }
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.10.0",
-    "@radix-ui/react-accordion": "^1.2.11",
-    "@radix-ui/react-alert-dialog": "^1.1.14",
-    "@radix-ui/react-aspect-ratio": "^1.1.7",
-    "@radix-ui/react-avatar": "^1.1.10",
-    "@radix-ui/react-checkbox": "^1.3.2",
-    "@radix-ui/react-collapsible": "^1.1.11",
-    "@radix-ui/react-context-menu": "^2.2.15",
-    "@radix-ui/react-dialog": "^1.1.14",
-    "@radix-ui/react-dropdown-menu": "^2.1.15",
-    "@radix-ui/react-hover-card": "^1.1.14",
-    "@radix-ui/react-label": "^2.1.7",
-    "@radix-ui/react-menubar": "^1.1.15",
-    "@radix-ui/react-navigation-menu": "^1.2.13",
-    "@radix-ui/react-popover": "^1.1.14",
-    "@radix-ui/react-progress": "^1.1.7",
-    "@radix-ui/react-radio-group": "^1.3.7",
-    "@radix-ui/react-scroll-area": "^1.2.9",
-    "@radix-ui/react-select": "^2.2.5",
-    "@radix-ui/react-separator": "^1.1.7",
-    "@radix-ui/react-slider": "^1.3.5",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-switch": "^1.2.5",
-    "@radix-ui/react-tabs": "^1.1.12",
-    "@radix-ui/react-toast": "^1.2.14",
-    "@radix-ui/react-toggle": "^1.1.9",
-    "@radix-ui/react-toggle-group": "^1.1.10",
-    "@radix-ui/react-tooltip": "^1.2.7",
-    "@tanstack/react-query": "^5.83.0",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-alert-dialog": "^1.1.15",
+    "@radix-ui/react-aspect-ratio": "^1.1.8",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-checkbox": "^1.3.3",
+    "@radix-ui/react-collapsible": "^1.1.12",
+    "@radix-ui/react-context-menu": "^2.2.16",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-hover-card": "^1.1.15",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-menubar": "^1.1.16",
+    "@radix-ui/react-navigation-menu": "^1.2.14",
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-progress": "^1.1.8",
+    "@radix-ui/react-radio-group": "^1.3.8",
+    "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slider": "^1.3.6",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-switch": "^1.2.6",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-toast": "^1.2.19",
+    "@radix-ui/react-toggle": "^1.1.10",
+    "@radix-ui/react-toggle-group": "^1.1.11",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/supabase-js": "^2.110.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "@tanstack/react-query": "^5.101.1",
+    "@tanstack/react-router": "^1.170.16",
+    "@tanstack/react-start": "^1.168.26",
+    "@tanstack/router-plugin": "^1.168.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "date-fns": "^3.6.0",
+    "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "html5-qrcode": "^2.3.8",
     "input-otp": "^1.4.2",
-    "lucide-react": "^0.462.0",
-    "next-themes": "^0.3.0",
-    "react": "^18.3.1",
-    "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.61.1",
-    "react-resizable-panels": "^2.1.9",
-    "react-router-dom": "^6.30.1",
+    "jsbarcode": "^3.12.3",
+    "lucide-react": "^0.575.0",
+    "lz-string": "^1.5.0",
+    "next-themes": "^0.4.6",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.0",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.71.2",
+    "react-resizable-panels": "^4.6.5",
+    "react-router-dom": "^7.18.1",
     "recharts": "^2.15.4",
-    "sonner": "^1.7.4",
-    "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7",
-    "vaul": "^0.9.9",
-    "zod": "^3.25.76"
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.1",
+    "tw-animate-css": "^1.3.4",
+    "vaul": "^1.1.2",
+    "vite-tsconfig-paths": "^6.0.2",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@electron/packager": "^18.3.6",
     "@eslint/js": "^9.32.0",
-    "@playwright/test": "^1.57.0",
-    "@tailwindcss/typography": "^0.5.16",
-    "@testing-library/jest-dom": "^6.6.0",
-    "@testing-library/react": "^16.0.0",
+    "@lovable.dev/vite-tanstack-config": "2.7.6",
     "@types/node": "^22.16.5",
-    "@types/react": "^18.3.23",
-    "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react-swc": "^3.11.0",
-    "autoprefixer": "^10.4.21",
-    "electron": "22.3.27",
-    "electron-builder": "^24.13.3",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^22.3.27",
+    "electron-builder": "^25.1.8",
     "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.6",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
-    "jsdom": "^20.0.3",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.17",
+    "nitro": "3.0.260603-beta",
+    "prettier": "^3.7.3",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19",
-    "vitest": "^3.2.4"
+    "typescript-eslint": "^8.56.1",
+    "vite": "^8.0.16"
   }
 }

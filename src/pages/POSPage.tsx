@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Suspense, lazy, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { POSMode, CartItem, Product, Sale, AppView, Cashier, CashierSession, SaleReturn } from '@/types/pos';
 import { generateInvoiceNumber } from '@/lib/invoiceNumber';
 import { playCashRegisterSound } from '@/lib/sound';
@@ -6,22 +6,37 @@ import { addSale, getActiveCashierSession, endCashierSession, updateActiveSessio
 import { getSettings, getStoreInfo } from '@/lib/settings';
 import { getCashierPermissions } from '@/lib/permissions';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { getCustomShortcuts } from '@/components/pos/POSSettings';
+import { getCustomShortcuts } from '@/lib/shortcuts';
 import { DiscountInfo, calculateDiscountAmount } from '@/lib/discounts';
 import { addReturn, getReturns, getReturnedQtysForSale, ReturnDialog } from '@/components/admin/SalesReturns';
 import { getHeldInvoices } from '@/lib/holdInvoice';
+import { startAutoSync, stopAutoSync } from '@/lib/telegramSync';
 import { getOfferForProduct, useCoupon } from '@/lib/coupons';
 import TopBar from '@/components/pos/TopBar';
 import InvoicePanel from '@/components/pos/InvoicePanel';
 import SupermarketMode from '@/components/pos/SupermarketMode';
 import CafeMode from '@/components/pos/CafeMode';
-import AdminDashboard from '@/components/admin/AdminDashboard';
 import AdminLogin from '@/components/auth/AdminLogin';
 import CashierLogin from '@/components/auth/CashierLogin';
-import POSSettings from '@/components/pos/POSSettings';
 import StartScreen from '@/components/auth/StartScreen';
 import ActivationGate from '@/components/auth/ActivationGate';
+import CashierDataSync from '@/components/pos/CashierDataSync';
+import FullscreenButton from '@/components/shared/FullscreenButton';
+import { toggleAppFullscreen } from '@/lib/fullscreen';
 import { LogOut, AlertTriangle, CheckCircle, Keyboard, GripVertical, FileText, RotateCcw, ChevronDown, ChevronUp, Minus, Plus, Check, X, RefreshCw } from 'lucide-react';
+
+const AdminDashboard = lazy(() => import('@/components/admin/AdminDashboard'));
+const BranchManagerDashboard = lazy(() => import('@/components/admin/BranchManagerDashboard'));
+const POSSettings = lazy(() => import('@/components/pos/POSSettings'));
+
+const LazyScreenFallback = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
+    <div className="text-center space-y-3">
+      <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
+      <p className="font-cairo text-muted-foreground">جاري تحميل النظام...</p>
+    </div>
+  </div>
+);
 
 const POSPage = () => {
   const [view, setView] = useState<AppView>('login');
@@ -39,6 +54,7 @@ const POSPage = () => {
   const [showCashierSales, setShowCashierSales] = useState(false);
   // Force re-read permissions when settings are saved
   const [permsVersion, setPermsVersion] = useState(0);
+  const [syncVersion, setSyncVersion] = useState(0);
 
   useEffect(() => {
     const activeSession = getActiveCashierSession();
@@ -53,6 +69,11 @@ const POSPage = () => {
     }
   }, []);
 
+  useEffect(() => {
+    startAutoSync({ immediate: true });
+    return () => stopAutoSync();
+  }, []);
+
   // Listen for settings/permissions changes
   useEffect(() => {
     const handler = (e: StorageEvent) => {
@@ -62,7 +83,10 @@ const POSPage = () => {
     };
     window.addEventListener('storage', handler);
     // Also listen for custom event from admin panel
-    const customHandler = () => setPermsVersion(v => v + 1);
+    const customHandler = () => {
+      setPermsVersion(v => v + 1);
+      setSyncVersion(v => v + 1);
+    };
     window.addEventListener('pos-settings-changed', customHandler);
     return () => {
       window.removeEventListener('storage', handler);
@@ -319,8 +343,7 @@ const POSPage = () => {
       'remove_last_item': () => { if (cart.length > 0) removeItem(cart[cart.length - 1].product.id); },
       'print_receipt': () => {},
       'toggle_fullscreen': () => {
-        if (document.fullscreenElement) { document.exitFullscreen?.(); }
-        else { document.documentElement.requestFullscreen?.(); }
+        void toggleAppFullscreen();
       },
       'undo_last_action': () => { if (cart.length > 0) removeItem(cart[cart.length - 1].product.id); },
       'view_sales': () => { if (cashierPerms?.canViewSales) setShowCashierSales(true); },
@@ -360,6 +383,7 @@ const POSPage = () => {
 
   return (
     <ActivationGate>
+      <FullscreenButton />
       <POSContent
         view={view} setView={setView} mode={mode} toggleMode={toggleMode}
         cart={cart} addToCart={addToCart} updateQty={updateQty} removeItem={removeItem}
@@ -375,6 +399,7 @@ const POSPage = () => {
         handleCashierLogin={handleCashierLogin} cashierPerms={cashierPerms}
         showCashierSales={showCashierSales} setShowCashierSales={setShowCashierSales}
         defaultShortcuts={DEFAULT_SHORTCUTS}
+        syncVersion={syncVersion}
       />
     </ActivationGate>
   );
@@ -399,6 +424,7 @@ interface POSContentProps {
   cashierPerms: ReturnType<typeof getCashierPermissions> | null;
   showCashierSales: boolean; setShowCashierSales: (v: boolean) => void;
   defaultShortcuts: Record<string, string>;
+  syncVersion: number;
 }
 
 const POSContent = ({
@@ -407,7 +433,7 @@ const POSContent = ({
   showSettings, setShowSettings, showLogoutConfirm, setShowLogoutConfirm,
   logoutName, setLogoutName, logoutError, setLogoutError,
   showShortcuts, setShowShortcuts, handleLogoutRequest, handleLogoutConfirm, handleCashierLogin,
-  cashierPerms, showCashierSales, setShowCashierSales, defaultShortcuts,
+  cashierPerms, showCashierSales, setShowCashierSales, defaultShortcuts, syncVersion,
 }: POSContentProps) => {
 
   // Get returns count for current cashier shift (must be before early returns)
@@ -417,13 +443,27 @@ const POSContent = ({
   }, [currentCashier, cashierPerms?.showReturns]);
 
   if (view === 'login') {
-    return <StartScreen onAdminLogin={() => setView('admin-login')} onCashierLogin={() => setView('cashier-login')} />;
+    return <StartScreen onAdminLogin={() => setView('admin-login')} onCashierLogin={() => setView('cashier-login')} onBranchManagerLogin={() => setView('branch-manager-login')} />;
   }
   if (view === 'admin' || view === 'admin-login') {
     if (view === 'admin-login') {
       return <AdminLogin onSuccess={() => setView('admin')} onCancel={() => setView(currentCashier ? 'pos' : 'login')} />;
     }
-    return <AdminDashboard onBack={() => setView(currentCashier ? 'pos' : 'login')} />;
+    return (
+      <Suspense fallback={<LazyScreenFallback />}>
+        <AdminDashboard onBack={() => setView(currentCashier ? 'pos' : 'login')} />
+      </Suspense>
+    );
+  }
+  if (view === 'branch-manager-login') {
+    return <AdminLogin onSuccess={() => setView('branch-manager')} onCancel={() => setView(currentCashier ? 'pos' : 'login')} />;
+  }
+  if (view === 'branch-manager') {
+    return (
+      <Suspense fallback={<LazyScreenFallback />}>
+        <BranchManagerDashboard onBack={() => setView(currentCashier ? 'pos' : 'login')} />
+      </Suspense>
+    );
   }
   if (view === 'cashier-login') {
     return <CashierLogin onSuccess={handleCashierLogin} onCancel={() => setView('login')} />;
@@ -465,6 +505,7 @@ const POSContent = ({
         onOpenSettings={() => setShowSettings(true)} onShowShortcuts={() => setShowShortcuts(true)}
         extraButtons={
           <>
+            {cashierPerms?.canSyncData && <CashierSyncButton />}
             {cashierPerms?.canViewSales && (
               <button onClick={() => setShowCashierSales(true)} className="p-2 rounded hover:bg-secondary transition-colors" title="فواتيري">
                 <FileText className="w-4 h-4" />
@@ -476,7 +517,7 @@ const POSContent = ({
 
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 overflow-hidden min-w-0">
-          {mode === 'supermarket' ? <SupermarketMode onAddToCart={addToCart} /> : <CafeMode onAddToCart={addToCart} />}
+          {mode === 'supermarket' ? <SupermarketMode key={`supermarket-${syncVersion}`} onAddToCart={addToCart} /> : <CafeMode key={`cafe-${syncVersion}`} onAddToCart={addToCart} />}
         </div>
         <ResizableInvoice
           cart={cart} updateQty={updateQty} removeItem={removeItem} clearCart={clearCart}
@@ -488,7 +529,11 @@ const POSContent = ({
         />
       </div>
 
-      {showSettings && <POSSettings onClose={() => { setShowSettings(false); window.dispatchEvent(new Event('pos-settings-changed')); }} cashierId={currentCashier?.id} />}
+      {showSettings && (
+        <Suspense fallback={null}>
+          <POSSettings onClose={() => { setShowSettings(false); window.dispatchEvent(new Event('pos-settings-changed')); }} cashierId={currentCashier?.id} />
+        </Suspense>
+      )}
 
       {/* Keyboard shortcuts help */}
       {showShortcuts && (
@@ -606,6 +651,23 @@ const POSContent = ({
         </div>
       )}
     </div>
+  );
+};
+
+// Small top-bar button that opens the cashier data-sync dialog
+const CashierSyncButton = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="p-2 rounded hover:bg-secondary transition-colors"
+        title="مزامنة البيانات مع المدير"
+      >
+        <RefreshCw className="w-4 h-4" />
+      </button>
+      {open && <CashierDataSync onClose={() => setOpen(false)} />}
+    </>
   );
 };
 

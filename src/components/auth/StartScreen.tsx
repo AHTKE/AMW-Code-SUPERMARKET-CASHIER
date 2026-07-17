@@ -1,19 +1,39 @@
 import { useState } from 'react';
-import { Lock, User } from 'lucide-react';
+import { Lock, User, Radio } from 'lucide-react';
 import { isAdminSetup } from '@/lib/store';
 import { getStoreInfo } from '@/lib/settings';
+import { getManagerTelegramConfig, getTelegramConfig, hasManagerTelegramConfigRaw } from '@/lib/telegramSync';
 import scLogo from '@/assets/supermarket-cashier-logo-v2.jpeg';
+import { normalizeSecret } from '@/lib/normalizeSecret';
 import { HiddenActivationAdmin } from './ActivationGate';
 import CompanyCredits from './CompanyCredits';
 
 interface StartScreenProps {
   onAdminLogin: () => void;
   onCashierLogin: () => void;
+  onBranchManagerLogin: () => void;
 }
 
-const StartScreen = ({ onAdminLogin, onCashierLogin }: StartScreenProps) => {
+const StartScreen = ({ onAdminLogin, onCashierLogin, onBranchManagerLogin }: StartScreenProps) => {
   const adminSetup = isAdminSetup();
   const storeInfo = getStoreInfo();
+  // Device role lock:
+  //   - Manager device: an explicit manager telegram config was saved here.
+  //     Hide cashier + single-branch admin entries.
+  //   - Branch device: this device is bound to a Telegram channel as a
+  //     regular branch (not the "manager" role). Hide the "مدير الفروع"
+  //     entry so nobody can accidentally overwrite the manager channel from
+  //     a cashier device. We check the RAW branch config only — the manager
+  //     helper synthesises a fake manager cfg from a branch cfg, which used
+  //     to leave both flags off and never hide the manager button.
+  const managerCfg = getManagerTelegramConfig();
+  const branchCfg = getTelegramConfig();
+  const managerDeviceReal = hasManagerTelegramConfigRaw();
+  const isManagerDevice = managerDeviceReal && !!managerCfg?.botToken;
+  const isBranchDevice =
+    !managerDeviceReal &&
+    !!branchCfg?.botToken &&
+    branchCfg.branchId !== 'manager';
   
   // Hidden activation admin: type AaAa2468AaAa in password field, click 3 times
   const [hiddenInput, setHiddenInput] = useState('');
@@ -23,7 +43,7 @@ const StartScreen = ({ onAdminLogin, onCashierLogin }: StartScreenProps) => {
   const [showHiddenAdmin, setShowHiddenAdmin] = useState(false);
 
   const handleHiddenClick = () => {
-    if (hiddenInput === 'AaAa2468AaAa') {
+    if (normalizeSecret(hiddenInput) === 'AaAa2468AaAa') {
       const newCount = clickCount + 1;
       setClickCount(newCount);
       if (newCount >= 3) {
@@ -36,7 +56,7 @@ const StartScreen = ({ onAdminLogin, onCashierLogin }: StartScreenProps) => {
 
   const handleSecondGateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (secondPassword === 'AMW2025@SECURE') {
+    if (normalizeSecret(secondPassword) === 'AMW2025@SECURE') {
       setShowHiddenAdmin(true);
       setShowSecondGate(false);
       setSecondPassword('');
@@ -58,24 +78,55 @@ const StartScreen = ({ onAdminLogin, onCashierLogin }: StartScreenProps) => {
           <p className="font-cairo text-muted-foreground text-sm">نظام نقاط البيع المتكامل</p>
         </div>
 
-        {/* Login options */}
+        {/* Login options — device-role aware:
+             - Manager device (server activated as مدير الفروع):
+               show ONLY مدير الفروع.
+             - Branch device (server activated as فرع/سوبرماركت):
+               hide مدير الفروع, show المدير + الكاشير.
+             - No server activated: show all three. */}
         <div className="space-y-3">
-          <button
-            onClick={onAdminLogin}
-            className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-supermarket text-supermarket-foreground font-cairo font-bold text-lg hover:opacity-90 transition-opacity active:scale-[0.98]"
-          >
-            <Lock className="w-6 h-6" />
-            دخول المدير
-          </button>
+          {!isManagerDevice && (
+            <button
+              onClick={onAdminLogin}
+              className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-supermarket text-supermarket-foreground font-cairo font-bold text-lg hover:opacity-90 transition-opacity active:scale-[0.98]"
+            >
+              <Lock className="w-6 h-6" />
+              دخول المدير
+            </button>
+          )}
 
-          <button
-            onClick={onCashierLogin}
-            className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-cafe text-cafe-foreground font-cairo font-bold text-lg hover:opacity-90 transition-opacity active:scale-[0.98]"
-          >
-            <User className="w-6 h-6" />
-            دخول الكاشير
-          </button>
+          {!isManagerDevice && (
+            <button
+              onClick={onCashierLogin}
+              className="w-full flex items-center justify-center gap-3 py-4 rounded-xl bg-cafe text-cafe-foreground font-cairo font-bold text-lg hover:opacity-90 transition-opacity active:scale-[0.98]"
+            >
+              <User className="w-6 h-6" />
+              دخول الكاشير
+            </button>
+          )}
+
+          {!isBranchDevice && (
+            <button
+              onClick={onBranchManagerLogin}
+              className="w-full flex items-center justify-center gap-3 py-3 rounded-xl border-2 border-supermarket/40 bg-supermarket/10 text-supermarket font-cairo font-bold text-base hover:bg-supermarket/20 transition-colors active:scale-[0.98]"
+            >
+              <Radio className="w-5 h-5" />
+              مدير الفروع
+            </button>
+          )}
+
+          {isManagerDevice && (
+            <p className="font-cairo text-[11px] text-muted-foreground leading-relaxed pt-1">
+              هذا الجهاز مضبوط حالياً كـ<b> مدير فروع</b>.
+            </p>
+          )}
+          {isBranchDevice && (
+            <p className="font-cairo text-[11px] text-muted-foreground leading-relaxed pt-1">
+              هذا الجهاز مربوط كـ<b> فرع</b> على قناة السيرفر.
+            </p>
+          )}
         </div>
+
 
         <p className="text-xs text-muted-foreground font-cairo">
           {adminSetup ? '✓ تم إعداد حساب المدير' : 'المدير: سيتم إنشاء الحساب عند أول دخول'}

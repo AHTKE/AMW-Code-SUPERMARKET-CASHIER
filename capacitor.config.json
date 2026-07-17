@@ -1,0 +1,18 @@
+{
+  "appId": "com.supermarket.cashier.pos",
+  "appName": "Supermarket Cashier",
+  "webDir": "dist/client",
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0F172A"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
